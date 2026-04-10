@@ -144,6 +144,87 @@
 		</div>
 	</div>
 
+	{% if doc.get("custom_order_fulfillment_type") %}
+		<div class="floreer-fulfillment-summary mt-4" style="border:1.5px solid #e8e4de;border-radius:8px;padding:20px;background:#f8f6f2;">
+			{% if doc.custom_order_fulfillment_type == "pickup" %}
+				<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+					<span style="font-size:1.2rem;">&#x1F3E0;</span>
+					<span style="font-weight:600;color:#1c1b18;font-size:0.95rem;">{{ _("Pickup") }}</span>
+				</div>
+				{% if doc.get("custom_pickup_location") %}
+					<div style="margin-bottom:6px;">
+						<span style="color:#5c5856;font-size:0.82rem;">{{ _("Location") }}</span><br>
+						<span style="font-weight:500;color:#1c1b18;">{{ doc.custom_pickup_location }}</span>
+					</div>
+				{% endif %}
+				{% if doc.get("custom_pickup_date") %}
+					<div style="margin-bottom:6px;">
+						<span style="color:#5c5856;font-size:0.82rem;">{{ _("Date") }}</span><br>
+						<span style="font-weight:500;color:#1c1b18;">{{ frappe.utils.format_date(doc.custom_pickup_date, 'medium') }}</span>
+					</div>
+				{% endif %}
+				{% if doc.get("custom_pickup_slot_key") %}
+					<div>
+						<span style="color:#5c5856;font-size:0.82rem;">{{ _("Time") }}</span><br>
+						<span style="font-weight:500;color:#1c1b18;">{{ doc.custom_pickup_slot_key.replace("-", " &ndash; ") }}</span>
+					</div>
+				{% endif %}
+			{% elif doc.custom_order_fulfillment_type == "delivery" %}
+				<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+					<span style="font-size:1.2rem;">&#x1F69A;</span>
+					<span style="font-weight:600;color:#1c1b18;font-size:0.95rem;">{{ _("Delivery") }}</span>
+				</div>
+				{% if doc.get("custom_delivery_zone") %}
+					<div style="margin-bottom:6px;">
+						<span style="color:#5c5856;font-size:0.82rem;">{{ _("Zone") }}</span><br>
+						<span style="font-weight:500;color:#1c1b18;">{{ doc.custom_delivery_zone }}</span>
+					</div>
+				{% endif %}
+				{% if doc.get("custom_delivery_window_label") %}
+					<div>
+						<span style="color:#5c5856;font-size:0.82rem;">{{ _("Window") }}</span><br>
+						<span style="font-weight:500;color:#1c1b18;">{{ doc.custom_delivery_window_label }}</span>
+					</div>
+				{% endif %}
+			{% endif %}
+		</div>
+	{% endif %}
+
+	{% if doc.doctype == "Sales Invoice" and doc.outstanding_amount > 0 and doc.docstatus == 1 %}
+		<div class="mt-4 text-center">
+			<button class="btn" id="floreer-pay-now"
+				style="background:#6b6d35;color:#fff;font-weight:600;padding:14px 40px;border-radius:6px;font-size:1rem;border:none;cursor:pointer;min-width:200px;">
+				{{ _("Pay Now") }} &mdash; {{ doc.get_formatted("outstanding_amount") }}
+			</button>
+			<p class="mt-2" style="color:#8a8580;font-size:0.8rem;">{{ _("Secure payment via PayFast") }}</p>
+		</div>
+		<script>
+		document.getElementById('floreer-pay-now').addEventListener('click', function() {
+			var btn = this;
+			btn.disabled = true;
+			btn.textContent = '{{ _("Generating payment link...") }}';
+			frappe.call({
+				type: 'POST',
+				method: 'floreer_payfast.api.invoice_payment.create_invoice_payment_link',
+				args: { sales_invoice_name: '{{ doc.name }}' },
+				callback: function(r) {
+					if (r.message && r.message.payment_url) {
+						window.location.href = r.message.payment_url;
+					} else {
+						btn.disabled = false;
+						btn.textContent = '{{ _("Pay Now") }}';
+						frappe.msgprint('{{ _("Could not generate payment link. Please try again.") }}');
+					}
+				},
+				error: function() {
+					btn.disabled = false;
+					btn.textContent = '{{ _("Pay Now") }}';
+				}
+			});
+		});
+		</script>
+	{% endif %}
+
 	{% if enabled_checkout and ((doc.doctype=="Sales Order" and doc.per_billed <= 0)
 		or (doc.doctype=="Sales Invoice" and doc.outstanding_amount> 0)) %}
 		<div class="panel panel-default">

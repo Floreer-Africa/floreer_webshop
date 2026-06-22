@@ -534,8 +534,15 @@ def set_taxes(quotation, cart_settings):
 	quotation.set("taxes", [])
 	#
 	# 	# append taxes
-	quotation.append_taxes_from_master()
-	quotation.append_taxes_from_item_tax_template()
+	# erpnext v17 moved append_taxes_from_master / append_taxes_from_item_tax_template
+	# off the transaction doc onto TaxService (erpnext.accounts.services.taxes).
+	# Calling them on the Quotation now raises AttributeError -> 500 on /cart.
+	# (Floreer-Africa/framework#76)
+	from erpnext.accounts.services.taxes import TaxService
+
+	tax_service = TaxService(quotation)
+	tax_service.append_taxes_from_master()
+	tax_service.append_taxes_from_item_tax_template()
 
 
 def get_party(user=None):

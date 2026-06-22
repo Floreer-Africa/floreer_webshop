@@ -184,7 +184,7 @@ webshop.ProductList = class {
 							<use href="#icon-assets"></use>
 						</svg>
 					</span>
-					${ settings.enable_checkout ? __("Add to Cart") :  __("Add to Quote") }
+					${ settings.enable_checkout ? __("Add to Cart") :  __("Add to Basket") }
 				</div>
 
 				<div class="cart-indicator list-indicator ${item.in_cart ? '' : 'hidden'}">
@@ -198,7 +198,7 @@ webshop.ProductList = class {
 						${ item.in_cart ? '' : 'hidden' }"
 						data-item-code="${ item.item_code }"
 						style="padding: 0.25rem 1rem; min-width: 135px;">
-						${ settings.enable_checkout ? __("Go to Cart") :  __("Go to Quote") }
+						${ settings.enable_checkout ? __("Go to Cart") :  __("Go to Basket") }
 					</div>
 				</a>
 			`;

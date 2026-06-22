@@ -205,7 +205,7 @@
 			btn.textContent = '{{ _("Generating payment link...") }}';
 			frappe.call({
 				type: 'POST',
-				method: 'floreer_payfast.api.invoice_payment.create_invoice_payment_link',
+				method: 'floreer_app.api.invoice_payment.create_invoice_payment_link',
 				args: { sales_invoice_name: '{{ doc.name }}' },
 				callback: function(r) {
 					if (r.message && r.message.payment_url) {

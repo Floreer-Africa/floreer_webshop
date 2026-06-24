@@ -29,9 +29,10 @@ def set_cart_count(quotation=None):
 	if cint(frappe.db.get_singles_value("Webshop Settings", "enabled")):
 		if not quotation:
 			quotation = _get_cart_quotation()
-		# Count distinct line items, not cint(total_qty) — weighted items (e.g. 0.7 kg)
+		# Count distinct product lines, not cint(total_qty) — weighted items (e.g. 0.7 kg)
 		# truncate to 0 and hide the navbar badge (Floreer-Africa/floreer_app#103).
-		cart_count = cstr(len(quotation.get("items") or []))
+		# Exclude the DELIVERY service line added by floreer_app#105.
+		cart_count = cstr(len([d for d in (quotation.get("items") or []) if d.item_code != "DELIVERY"]))
 
 		if hasattr(frappe.local, "cookie_manager"):
 			frappe.local.cookie_manager.set_cookie("cart_count", cart_count)

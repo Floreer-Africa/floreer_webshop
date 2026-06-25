@@ -191,38 +191,15 @@
 	{% endif %}
 
 	{% if doc.doctype == "Sales Invoice" and doc.outstanding_amount > 0 and doc.docstatus == 1 %}
+		{# Floreer fork patch (floreer_app#107): route to the /portal/pay method-picker
+		   (PayFast / EFT / pay-on-collection) instead of going straight to PayFast. #}
 		<div class="mt-4 text-center">
-			<button class="btn" id="floreer-pay-now"
-				style="background:#6b6d35;color:#fff;font-weight:600;padding:14px 40px;border-radius:6px;font-size:1rem;border:none;cursor:pointer;min-width:200px;">
+			<a class="btn" href="/portal/pay?invoice={{ doc.name }}"
+				style="background:#6b6d35;color:#fff;font-weight:600;padding:14px 40px;border-radius:6px;font-size:1rem;text-decoration:none;display:inline-block;min-width:200px;">
 				{{ _("Pay Now") }} &mdash; {{ doc.get_formatted("outstanding_amount") }}
-			</button>
-			<p class="mt-2" style="color:#8a8580;font-size:0.8rem;">{{ _("Secure payment via PayFast") }}</p>
+			</a>
+			<p class="mt-2" style="color:#8a8580;font-size:0.8rem;">{{ _("Choose PayFast, EFT, or pay on collection") }}</p>
 		</div>
-		<script>
-		document.getElementById('floreer-pay-now').addEventListener('click', function() {
-			var btn = this;
-			btn.disabled = true;
-			btn.textContent = '{{ _("Generating payment link...") }}';
-			frappe.call({
-				type: 'POST',
-				method: 'floreer_app.api.invoice_payment.create_invoice_payment_link',
-				args: { sales_invoice_name: '{{ doc.name }}' },
-				callback: function(r) {
-					if (r.message && r.message.payment_url) {
-						window.location.href = r.message.payment_url;
-					} else {
-						btn.disabled = false;
-						btn.textContent = '{{ _("Pay Now") }}';
-						frappe.msgprint('{{ _("Could not generate payment link. Please try again.") }}');
-					}
-				},
-				error: function() {
-					btn.disabled = false;
-					btn.textContent = '{{ _("Pay Now") }}';
-				}
-			});
-		});
-		</script>
 	{% endif %}
 
 	{% if enabled_checkout and ((doc.doctype=="Sales Order" and doc.per_billed <= 0)

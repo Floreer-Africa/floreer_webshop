@@ -493,7 +493,15 @@ def _set_price_list(cart_settings, quotation=None):
 	"""Set price list based on customer or shopping cart default"""
 	from erpnext.accounts.party import get_default_price_list
 
-	party_name = quotation.get("party_name") if quotation else get_party().get("name")
+	# get_party() returns None for a Guest (or any Portal User without a linked
+	# Customer), so guard it — the product page must render for guests. A missing
+	# party simply falls back to the shopping-cart default price list below.
+	# (Floreer vendored-fork patch — re-verify after webshop upstream-sync.)
+	if quotation:
+		party_name = quotation.get("party_name")
+	else:
+		party = get_party()
+		party_name = party.get("name") if party else None
 	selling_price_list = None
 
 	# check if default customer price list exists

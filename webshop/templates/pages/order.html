@@ -40,6 +40,19 @@
 					rel="noopener noreferrer">
 					{{ _("Print") }}
 				</a>
+				{# Floreer (floreer_app#134): let the customer cancel their own quote/order
+				   before payment. Shown for a Submitted Quotation, or a Sales Order still
+				   Pending/Preparing/Awaiting Payment with nothing billed or delivered. The
+				   whitelisted method re-checks ownership + state. #}
+				{% if (doc.doctype == 'Quotation' and doc.docstatus|int == 1)
+					or (doc.doctype == 'Sales Order' and doc.docstatus|int == 1
+						and doc.custom_fulfillment_status in ['Pending', 'Preparing', 'Awaiting Payment']
+						and doc.per_billed|float == 0 and doc.per_delivered|float == 0) %}
+				<a class="dropdown-item text-danger" href="#" id="floreer-cancel-doc"
+					data-doctype="{{ doc.doctype }}" data-name="{{ doc.name }}">
+					{{ _("Cancel") }}
+				</a>
+				{% endif %}
 			</ul>
 		</div>
 		{% if doc.doctype == 'Supplier Quotation' and doc.docstatus|int == 0 %}
@@ -314,5 +327,34 @@
 			grand_total: '{{ doc.grand_total }}',
 			currency: '{{ doc.currency }}'
 		}
+	</script>
+	<script>
+		/* Floreer (floreer_app#134): customer self-cancel of a pre-payment quote/order. */
+		$(document).ready(function() {
+			var btn = document.getElementById('floreer-cancel-doc');
+			if (!btn) return;
+			btn.addEventListener('click', function(e) {
+				e.preventDefault();
+				var dt = btn.getAttribute('data-doctype');
+				var dn = btn.getAttribute('data-name');
+				var label = (dt === 'Sales Order') ? __('order') : __('quote');
+				frappe.confirm(__('Cancel this {0}? This cannot be undone.', [label]), function() {
+					frappe.freeze(__('Cancelling...'));
+					frappe.call({
+						method: 'floreer_app.api.order_cancel.cancel_customer_document',
+						type: 'POST',
+						args: { doctype: dt, name: dn },
+						callback: function(r) {
+							frappe.unfreeze();
+							if (r.exc) return;
+							frappe.msgprint(__('Cancelled.'));
+							var redirect = (r.message && r.message.redirect) || '/orders';
+							setTimeout(function() { window.location.href = redirect; }, 1200);
+						},
+						error: function() { frappe.unfreeze(); }
+					});
+				});
+			});
+		});
 	</script>
 {% endblock %}

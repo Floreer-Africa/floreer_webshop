@@ -47,7 +47,7 @@
 				{% if (doc.doctype == 'Quotation' and doc.docstatus|int == 1)
 					or (doc.doctype == 'Sales Order' and doc.docstatus|int == 1
 						and doc.custom_fulfillment_status in ['Pending', 'Preparing', 'Awaiting Payment']
-						and doc.per_billed|float == 0 and doc.per_delivered|float == 0) %}
+						and doc.per_delivered|float == 0) %}
 				<a class="dropdown-item text-danger" href="#" id="floreer-cancel-doc"
 					data-doctype="{{ doc.doctype }}" data-name="{{ doc.name }}">
 					{{ _("Cancel") }}
@@ -78,6 +78,92 @@
 
 {% block page_content %}
 	<div>
+		{# Post-checkout status banner: reassure the shopper while we pick and weigh,
+		   then surface the invoice to pay once it's raised (floreer_app#136 / #137). #}
+		{% if doc.doctype == "Sales Order" and doc.docstatus == 1 %}
+			{% if doc.get('custom_fulfillment_status') in ['Pending', 'Preparing']
+				and (doc.per_billed | float) == 0 %}
+				<div class="floreer-order-banner" role="status">
+					<div class="fob-mark" aria-hidden="true">🌿</div>
+					<div class="fob-body">
+						<h4 class="fob-title">{{ _("Thank you for your order!") }}</h4>
+						<p class="fob-lead">{{ _("We’ve received it and our team is getting started. Here’s what happens next:") }}</p>
+						<ol class="fob-steps">
+							<li>{{ _("Your order is confirmed and in our queue.") }}</li>
+							<li>{{ _("We pick and weigh each item by hand, so fresh produce is charged by its true weight and price.") }}</li>
+							<li>{{ _("Once that’s done, we’ll email you an invoice to pay — please keep an eye on your inbox.") }}</li>
+						</ol>
+					</div>
+				</div>
+			{% elif doc.get('custom_fulfillment_status') == 'Awaiting Payment' %}
+				{% set _order_invoices = frappe.get_all("Sales Invoice Item",
+					filters={"sales_order": doc.name, "docstatus": 1}, pluck="parent") %}
+				{% set _invoice = _order_invoices[0] if _order_invoices else None %}
+				{% if _invoice %}
+					<div class="floreer-order-banner" role="status">
+						<div class="fob-mark" aria-hidden="true">🧾</div>
+						<div class="fob-body">
+							<h4 class="fob-title">{{ _("Your invoice is ready") }}</h4>
+							<p class="fob-lead">{{ _("We’ve finished picking and weighing your order. Please review your invoice and pay to confirm it.") }}</p>
+							<a class="fob-cta" href="/invoices/{{ _invoice }}">{{ _("View invoice &amp; pay") }}</a>
+						</div>
+					</div>
+				{% endif %}
+			{% endif %}
+			<style>
+				.floreer-order-banner {
+					display: flex;
+					gap: 16px;
+					align-items: flex-start;
+					margin: 8px 0 20px;
+					padding: 20px 22px;
+					background: #f7f5ec;
+					border: 1px solid #e3e0cf;
+					border-left: 4px solid #b7b973;
+					border-radius: 10px;
+				}
+				.floreer-order-banner .fob-mark {
+					font-size: 26px;
+					line-height: 1.2;
+					flex: 0 0 auto;
+				}
+				.floreer-order-banner .fob-title {
+					margin: 0 0 4px;
+					font-weight: 600;
+					color: #3f4024;
+				}
+				.floreer-order-banner .fob-lead {
+					margin: 0 0 10px;
+					color: #5a5b45;
+				}
+				.floreer-order-banner .fob-steps {
+					margin: 0;
+					padding-left: 20px;
+					color: #5a5b45;
+				}
+				.floreer-order-banner .fob-steps li {
+					margin-bottom: 4px;
+				}
+				.floreer-order-banner .fob-steps li:last-child {
+					margin-bottom: 0;
+				}
+				.floreer-order-banner .fob-cta {
+					display: inline-block;
+					margin-top: 6px;
+					background: #6b6d35;
+					color: #fff;
+					font-weight: 600;
+					padding: 11px 26px;
+					border-radius: 6px;
+					text-decoration: none;
+					font-size: 0.95rem;
+				}
+				.floreer-order-banner .fob-cta:hover {
+					background: #595b2b;
+					color: #fff;
+				}
+			</style>
+		{% endif %}
 		<div class="row transaction-subheading  mt-1">
 			<div class="col-6 text-muted small mt-1">
 				{{ frappe.utils.format_date(doc.transaction_date, 'medium') }}
@@ -93,6 +179,11 @@
 				<span class="indicator-pill {{ doc.indicator_color or (" blue" if doc.docstatus==1 else "darkgrey" ) }}">
 					{% if doc.doctype == "Quotation" and not doc.docstatus %}
 						{{ _("Pending") }}
+					{% elif doc.doctype == "Sales Order" and doc.get('custom_fulfillment_status') %}
+						{# Floreer fulfillment status is delivery/collection-agnostic — the
+						   ERPNext "To Deliver and Bill" status wrongly implies delivery on a
+						   collection order (floreer_app#137). #}
+						{{ _(doc.custom_fulfillment_status) }}
 					{% else %}
 						{{ _(doc.get('indicator_title')) or _(doc.status) or _("Submitted") }}
 					{% endif %}

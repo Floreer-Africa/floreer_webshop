@@ -95,7 +95,7 @@
 						</ol>
 					</div>
 				</div>
-			{% elif doc.get('custom_fulfillment_status') == 'Awaiting Payment' %}
+			{% elif doc.get('custom_fulfillment_status') in ['Awaiting Payment', 'Delivered - Awaiting Payment', 'Collected - Awaiting Payment'] %}
 				{% set _order_invoices = frappe.get_all("Sales Invoice Item",
 					filters={"sales_order": doc.name, "docstatus": 1}, pluck="parent") %}
 				{% set _invoice = _order_invoices[0] if _order_invoices else None %}

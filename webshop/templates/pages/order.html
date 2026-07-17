@@ -179,7 +179,7 @@
 				<span class="indicator-pill {{ doc.indicator_color or (" blue" if doc.docstatus==1 else "darkgrey" ) }}">
 					{% if doc.doctype == "Quotation" and not doc.docstatus %}
 						{{ _("Pending") }}
-					{% elif doc.doctype == "Sales Order" and doc.get('custom_fulfillment_status') %}
+					{% elif doc.doctype == "Sales Order" and doc.docstatus == 1 and doc.get('custom_fulfillment_status') %}
 						{# Floreer fulfillment status is delivery/collection-agnostic — the
 						   ERPNext "To Deliver and Bill" status wrongly implies delivery on a
 						   collection order (floreer_app#137). #}

@@ -151,7 +151,11 @@ $.extend(shopping_cart, {
 					shopping_cart.unfreeze();
 					var msg = "";
 					if(r._server_messages) {
-						msg = JSON.parse(r._server_messages || []).join("<br>");
+						// _server_messages is a JSON array of JSON strings; extract each
+						// message's human text instead of dumping the raw JSON (framework#143).
+						msg = (JSON.parse(r._server_messages || "[]") || []).map(function(m) {
+							try { return JSON.parse(m).message || m; } catch (e) { return m; }
+						}).join("<br>");
 					}
 
 					$("#cart-error")
@@ -178,7 +182,11 @@ $.extend(shopping_cart, {
 					shopping_cart.unfreeze();
 					var msg = "";
 					if(r._server_messages) {
-						msg = JSON.parse(r._server_messages || []).join("<br>");
+						// _server_messages is a JSON array of JSON strings; extract each
+						// message's human text instead of dumping the raw JSON (framework#143).
+						msg = (JSON.parse(r._server_messages || "[]") || []).map(function(m) {
+							try { return JSON.parse(m).message || m; } catch (e) { return m; }
+						}).join("<br>");
 					}
 
 					$("#cart-error")

@@ -78,6 +78,31 @@
 
 {% block page_content %}
 	<div>
+		{# Floreer (floreer_app#226): a Draft Supplier Quotation is NOT yet sent to
+		   Floreer. Make the required second step (Submit Quotation) unmissable. #}
+		{% if doc.doctype == 'Supplier Quotation' and doc.docstatus|int == 0 %}
+			<div class="sq-draft-banner" style="
+				background: #faf6f1;
+				border: 2px solid #b7b973;
+				border-radius: 8px;
+				padding: 16px 20px;
+				margin-bottom: 24px;
+				display: flex;
+				align-items: flex-start;
+				gap: 12px;
+			">
+				<svg viewBox="0 0 24 24" fill="none" stroke="#6b6d35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; min-width: 24px; height: 24px; margin-top: 2px;">
+					<path d="M12 9v4"/><path d="M12 17h.01"/>
+					<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+				</svg>
+				<div>
+					<strong style="color: #1c1b18; font-size: 15px;">{{ _("This quote is a draft — not sent yet") }}</strong>
+					<p style="color: #5a5a58; margin: 4px 0 0; font-size: 14px; line-height: 1.5;">
+						{{ _("Your pricing is saved. Click <strong>Submit Quotation</strong> to send your final quote to Floreer. Until you submit, Floreer can’t see it.") }}
+					</p>
+				</div>
+			</div>
+		{% endif %}
 		{# Post-checkout status banner: reassure the shopper while we pick and weigh,
 		   then surface the invoice to pay once it's raised (floreer_app#136 / #137). #}
 		{% if doc.doctype == "Sales Order" and doc.docstatus == 1 %}

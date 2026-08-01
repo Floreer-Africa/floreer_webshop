@@ -61,6 +61,12 @@
 				{{ _("Submit Quotation") }}
 			</button>
 		{% endif %}
+		{% if doc.doctype == 'Purchase Invoice' and doc.docstatus|int == 0 %}
+			<button class="btn btn-sm ml-2" id="submit-pi-btn"
+				style="background: #b7b973; color: #1c1b18; border: none; font-weight: 600; padding: 8px 20px; border-radius: 6px;">
+				{{ _("Submit Invoice") }}
+			</button>
+		{% endif %}
 		<div class="form-column col-sm-6">
 			<div class="page-header-actions-block" data-html-block="header-actions">
 				<p>
@@ -100,6 +106,46 @@
 					<p style="color: #5a5a58; margin: 4px 0 0; font-size: 14px; line-height: 1.5;">
 						{{ _("Your pricing is saved. Click <strong>Submit Quotation</strong> to send your final quote to Floreer. Until you submit, Floreer can’t see it.") }}
 					</p>
+				</div>
+			</div>
+		{% endif %}
+		{# Floreer (floreer_app#227): a Draft Purchase Invoice is NOT yet sent. Let the
+		   supplier attach their own invoice number/date (optional), then Submit. #}
+		{% if doc.doctype == 'Purchase Invoice' and doc.docstatus|int == 0 %}
+			<div class="pi-draft-banner" style="
+				background: #faf6f1;
+				border: 2px solid #b7b973;
+				border-radius: 8px;
+				padding: 16px 20px;
+				margin-bottom: 20px;
+				display: flex;
+				align-items: flex-start;
+				gap: 12px;
+			">
+				<svg viewBox="0 0 24 24" fill="none" stroke="#6b6d35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; min-width: 24px; height: 24px; margin-top: 2px;">
+					<path d="M12 9v4"/><path d="M12 17h.01"/>
+					<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+				</svg>
+				<div style="flex: 1;">
+					<strong style="color: #1c1b18; font-size: 15px;">{{ _("This invoice is a draft — not sent yet") }}</strong>
+					<p style="color: #5a5a58; margin: 4px 0 12px; font-size: 14px; line-height: 1.5;">
+						{{ _("Add your own invoice number and date (optional), then click <strong>Submit Invoice</strong> to send it to Floreer.") }}
+					</p>
+					<div class="row">
+						<div class="col-sm-6" style="margin-bottom: 8px;">
+							<label class="text-muted small" for="pi-bill-no">{{ _("Your Invoice Number") }}</label>
+							<input type="text" id="pi-bill-no" class="form-control"
+								value="{{ doc.bill_no or '' }}"
+								placeholder="{{ _('e.g. INV-1042') }}"
+								style="background:#fff;border:2px solid #b7b973;border-radius:6px;">
+						</div>
+						<div class="col-sm-6" style="margin-bottom: 8px;">
+							<label class="text-muted small" for="pi-bill-date">{{ _("Invoice Date") }}</label>
+							<input type="date" id="pi-bill-date" class="form-control"
+								value="{{ doc.bill_date or '' }}"
+								style="background:#fff;border:2px solid #b7b973;border-radius:6px;">
+						</div>
+					</div>
 				</div>
 			</div>
 		{% endif %}
@@ -251,6 +297,9 @@
 				<div class="order-items row align-items-center">
 					<span class="order-item-name col-5 pr-0">
 						{{ item_name_and_description(d) }}
+						{% if doc.doctype == 'Supplier Quotation' and doc.docstatus|int == 0 and d.item_code == 'SUPPLIER-CHARGE' %}
+							<a href="#" class="sq-remove-line text-danger small" data-row="{{ d.name }}" style="display:inline-block;margin-top:4px;">&times; {{ _("remove line") }}</a>
+						{% endif %}
 					</span>
 
 					<span class="d-s-n col-3 pl-10">
@@ -264,6 +313,30 @@
 					</span>
 				</div>
 				{% endfor %}
+				{# Floreer (floreer_app#227): let the supplier add extra lines
+				   (e.g. transport/delivery) to a draft quotation. #}
+				{% if doc.doctype == 'Supplier Quotation' and doc.docstatus|int == 0 %}
+				<div class="sq-add-line row align-items-end mt-3" style="border-top:1px dashed #d8d3c8;padding-top:12px;">
+					<div class="col-sm-6" style="margin-bottom:8px;">
+						<label class="text-muted small" for="sq-line-desc">{{ _("Add a line (e.g. transport / delivery)") }}</label>
+						<input type="text" id="sq-line-desc" class="form-control"
+							placeholder="{{ _('e.g. Transport to George') }}"
+							style="background:#fff;border:2px solid #b7b973;border-radius:6px;">
+					</div>
+					<div class="col-sm-3" style="margin-bottom:8px;">
+						<label class="text-muted small" for="sq-line-amount">{{ _("Amount") }}</label>
+						<input type="number" min="0" step="0.01" id="sq-line-amount" class="form-control text-right"
+							placeholder="0.00"
+							style="background:#fff;border:2px solid #b7b973;border-radius:6px;">
+					</div>
+					<div class="col-sm-3" style="margin-bottom:8px;">
+						<button class="btn btn-sm w-100" id="sq-add-line-btn"
+							style="background:#6b6d35;color:#fff;border:none;font-weight:600;padding:8px;border-radius:6px;">
+							{{ _("+ Add line") }}
+						</button>
+					</div>
+				</div>
+				{% endif %}
 			</div>
 
 			<!-- taxes -->
@@ -466,6 +539,59 @@
 							frappe.msgprint(__('Cancelled.'));
 							var redirect = (r.message && r.message.redirect) || '/orders';
 							setTimeout(function() { window.location.href = redirect; }, 1200);
+						},
+						error: function() { frappe.unfreeze(); }
+					});
+				});
+			});
+		});
+	</script>
+	<script>
+		// Floreer (floreer_app#227): editable supplier drafts — extra SQ lines + PI submit.
+		$(document).ready(function() {
+			$('#sq-add-line-btn').on('click', function(e) {
+				e.preventDefault();
+				var desc = ($('#sq-line-desc').val() || '').trim();
+				var amount = parseFloat($('#sq-line-amount').val());
+				if (!desc) { frappe.msgprint(__('Please enter a description.')); return; }
+				if (!(amount > 0)) { frappe.msgprint(__('Please enter an amount greater than zero.')); return; }
+				frappe.freeze(__('Adding line...'));
+				frappe.call({
+					method: 'floreer_app.supplier_portal.api.add_supplier_quotation_line',
+					args: { name: '{{ doc.name }}', description: desc, amount: amount },
+					callback: function(r) { frappe.unfreeze(); if (r.exc) return; window.location.reload(); },
+					error: function() { frappe.unfreeze(); }
+				});
+			});
+
+			$('.sq-remove-line').on('click', function(e) {
+				e.preventDefault();
+				var row = $(this).data('row');
+				frappe.freeze(__('Removing line...'));
+				frappe.call({
+					method: 'floreer_app.supplier_portal.api.remove_supplier_quotation_line',
+					args: { name: '{{ doc.name }}', row_name: row },
+					callback: function(r) { frappe.unfreeze(); if (r.exc) return; window.location.reload(); },
+					error: function() { frappe.unfreeze(); }
+				});
+			});
+
+			$('#submit-pi-btn').on('click', function(e) {
+				e.preventDefault();
+				frappe.confirm(__('Submit this invoice to Floreer? This cannot be undone.'), function() {
+					frappe.freeze(__('Submitting...'));
+					frappe.call({
+						method: 'floreer_app.supplier_portal.api.submit_supplier_invoice',
+						args: {
+							name: '{{ doc.name }}',
+							bill_no: ($('#pi-bill-no').val() || '').trim(),
+							bill_date: $('#pi-bill-date').val() || null
+						},
+						callback: function(r) {
+							frappe.unfreeze();
+							if (r.exc) return;
+							frappe.msgprint(__('Invoice submitted successfully.'));
+							setTimeout(function() { window.location.reload(); }, 1500);
 						},
 						error: function() { frappe.unfreeze(); }
 					});

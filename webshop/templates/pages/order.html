@@ -336,6 +336,23 @@
 						</button>
 					</div>
 				</div>
+				{# Floreer: supplier sets a delivery/handling fee — written as a
+				   Purchase Taxes and Charges row (category Total), not an item line. #}
+				{% set _df = (doc.taxes | selectattr('description', 'equalto', 'Delivery / Handling') | map(attribute='tax_amount') | first) %}
+				<div class="sq-delivery-fee row align-items-end mt-2">
+					<div class="col-sm-9" style="margin-bottom:8px;">
+						<label class="text-muted small" for="sq-delivery-fee">{{ _("Delivery / handling fee") }}</label>
+						<input type="number" min="0" step="0.01" id="sq-delivery-fee" class="form-control text-right"
+							value="{{ _df or '' }}" placeholder="0.00"
+							style="background:#fff;border:2px solid #b7b973;border-radius:6px;">
+					</div>
+					<div class="col-sm-3" style="margin-bottom:8px;">
+						<button class="btn btn-sm w-100" id="sq-delivery-fee-btn"
+							style="background:#6b6d35;color:#fff;border:none;font-weight:600;padding:8px;border-radius:6px;">
+							{{ _("Set fee") }}
+						</button>
+					</div>
+				</div>
 				{% endif %}
 			</div>
 
@@ -571,6 +588,19 @@
 				frappe.call({
 					method: 'floreer_app.supplier_portal.api.remove_supplier_quotation_line',
 					args: { name: '{{ doc.name }}', row_name: row },
+					callback: function(r) { frappe.unfreeze(); if (r.exc) return; window.location.reload(); },
+					error: function() { frappe.unfreeze(); }
+				});
+			});
+
+			$('#sq-delivery-fee-btn').on('click', function(e) {
+				e.preventDefault();
+				var amount = parseFloat($('#sq-delivery-fee').val());
+				if (isNaN(amount) || amount < 0) { frappe.msgprint(__('Please enter a valid amount (0 clears the fee).')); return; }
+				frappe.freeze(__('Saving delivery fee...'));
+				frappe.call({
+					method: 'floreer_app.supplier_portal.api.set_supplier_quotation_delivery_fee',
+					args: { name: '{{ doc.name }}', amount: amount },
 					callback: function(r) { frappe.unfreeze(); if (r.exc) return; window.location.reload(); },
 					error: function() { frappe.unfreeze(); }
 				});

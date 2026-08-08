@@ -11,6 +11,28 @@ $.extend(shopping_cart, {
 			title + '</h4><p class="text-muted">' + text + '</p></div>');
 	},
 
+	// framework#167 — render a server-side failure where the shopper can see it.
+	// `_server_messages` is a JSON array of JSON *strings*, so each entry needs a
+	// second parse to reach its human text (framework#143). Shared by the success
+	// callback and the error handler so the two can never drift apart again.
+	extract_server_messages: function(r) {
+		if (!r || !r._server_messages) return "";
+		var raw;
+		try { raw = JSON.parse(r._server_messages) || []; } catch (e) { return ""; }
+		if (!Array.isArray(raw)) return "";
+		return raw.map(function(m) {
+			try { return JSON.parse(m).message || m; } catch (e) { return m; }
+		}).join("<br>");
+	},
+
+	show_cart_error: function(r) {
+		shopping_cart.unfreeze();
+		$("#cart-error")
+			.empty()
+			.html(shopping_cart.extract_server_messages(r) || frappe._("Something went wrong!"))
+			.toggle(true);
+	},
+
 	bind_events: function() {
 		shopping_cart.bind_place_order();
 		shopping_cart.bind_request_quotation();
@@ -148,24 +170,18 @@ $.extend(shopping_cart, {
 			btn: btn,
 			callback: function(r) {
 				if(r.exc) {
-					shopping_cart.unfreeze();
-					var msg = "";
-					if(r._server_messages) {
-						// _server_messages is a JSON array of JSON strings; extract each
-						// message's human text instead of dumping the raw JSON (framework#143).
-						msg = (JSON.parse(r._server_messages || "[]") || []).map(function(m) {
-							try { return JSON.parse(m).message || m; } catch (e) { return m; }
-						}).join("<br>");
-					}
-
-					$("#cart-error")
-						.empty()
-						.html(msg || frappe._("Something went wrong!"))
-						.toggle(true);
+					shopping_cart.show_cart_error(r);
 				} else {
 					$(btn).hide();
 					window.location.href = '/orders/' + encodeURIComponent(r.message);
-				}
+				}			},
+			// framework#167 — a frappe.throw comes back as HTTP 417, and frappe's
+			// 417 handler calls error_callback ONLY: never `callback`, and (unlike
+			// its 413 sibling) it does not msgprint either. With no `error` handler
+			// the incomplete-delivery-address throw showed the shopper NOTHING and
+			// left the page frozen, while writing no Error Log row server-side.
+			error: function(r) {
+				shopping_cart.show_cart_error(r);
 			}
 		});
 	},
@@ -179,24 +195,18 @@ $.extend(shopping_cart, {
 			btn: btn,
 			callback: function(r) {
 				if(r.exc) {
-					shopping_cart.unfreeze();
-					var msg = "";
-					if(r._server_messages) {
-						// _server_messages is a JSON array of JSON strings; extract each
-						// message's human text instead of dumping the raw JSON (framework#143).
-						msg = (JSON.parse(r._server_messages || "[]") || []).map(function(m) {
-							try { return JSON.parse(m).message || m; } catch (e) { return m; }
-						}).join("<br>");
-					}
-
-					$("#cart-error")
-						.empty()
-						.html(msg || frappe._("Something went wrong!"))
-						.toggle(true);
+					shopping_cart.show_cart_error(r);
 				} else {
 					$(btn).hide();
 					window.location.href = '/quotations/' + encodeURIComponent(r.message);
-				}
+				}			},
+			// framework#167 — a frappe.throw comes back as HTTP 417, and frappe's
+			// 417 handler calls error_callback ONLY: never `callback`, and (unlike
+			// its 413 sibling) it does not msgprint either. With no `error` handler
+			// the incomplete-delivery-address throw showed the shopper NOTHING and
+			// left the page frozen, while writing no Error Log row server-side.
+			error: function(r) {
+				shopping_cart.show_cart_error(r);
 			}
 		});
 	},

@@ -220,7 +220,15 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			),
 		}
 	else:
-		return {"name": quotation.name}
+		# framework#169: the empty-cart branch above deletes the quotation and sets
+		# `quotation = None`, so this must not dereference it. Removing the LAST item
+		# lands here (callers that pass no `with_items` — e.g. floreer_mini_cart.js's
+		# Remove), which raised AttributeError -> HTTP 500 and made Remove look dead.
+		# The `with_items` branch was always safe: get_cart_quotation(None) handles it.
+		# No caller reads this `name` (checked shopping_cart.js, product_page.js and
+		# every floreer_app caller), so reporting None for an emptied cart is both
+		# safe and truthful.
+		return {"name": quotation.name if quotation else None}
 
 
 @frappe.whitelist()

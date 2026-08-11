@@ -194,9 +194,17 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			quotation_items[0].warehouse = warehouse
 			quotation_items[0].additional_notes = additional_notes
 
+	# framework#175: declare the flow trusted BEFORE recalculating, not after.
+	# apply_cart_settings refreshes item details via get_item_details, which
+	# upstream now hard-gates on frappe.session.user (erpnext 5835709402 /
+	# #57515). The erpnext fork elevates that refresh only when this flag is
+	# already set, so setting it two lines later left every shopper's cart
+	# write raising PermissionError. The flag was set unconditionally here
+	# anyway — hoisting it changes nothing about the save that follows.
+	quotation.flags.ignore_permissions = True
+
 	apply_cart_settings(quotation=quotation)
 
-	quotation.flags.ignore_permissions = True
 	quotation.payment_schedule = []
 	if not empty_card:
 		quotation.save()
@@ -315,9 +323,11 @@ def update_cart_address(address_type, address_name):
 			(doc for doc in get_shipping_addresses() if doc["name"] == address_name),
 			None,
 		)
+	# framework#175 — trust declared before the recalculation (see update_cart).
+	quotation.flags.ignore_permissions = True
+
 	apply_cart_settings(quotation=quotation)
 
-	quotation.flags.ignore_permissions = True
 	quotation.save()
 
 	context = get_cart_quotation(quotation)
@@ -731,9 +741,11 @@ def apply_shipping_rule(shipping_rule):
 
 	quotation.shipping_rule = shipping_rule
 
+	# framework#175 — trust declared before the recalculation (see update_cart).
+	quotation.flags.ignore_permissions = True
+
 	apply_cart_settings(quotation=quotation)
 
-	quotation.flags.ignore_permissions = True
 	quotation.save()
 
 	return get_cart_quotation(quotation)
